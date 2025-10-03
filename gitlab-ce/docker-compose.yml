@@ -1,0 +1,20 @@
+version: '3.3'
+services:
+ web:
+   image: 'gitlab/gitlab-ce:latest'
+   container_name: gitlab-ce
+   restart: always
+   hostname: 'gitlab.vm1.ru'
+   environment:
+     GITLAB_OMNIBUS_CONFIG: |
+       external_url 'http://gitlab.vm1.ru'
+       gitlab_rails['gitlab_shell_ssh_port'] = 2224
+   ports:
+     - '5080:80'
+     - '5443:443'
+     - '5222:22'
+   volumes:
+     - './config:/etc/gitlab'
+     - './logs:/var/log/gitlab'
+     - './data:/var/opt/gitlab'
+   shm_size: '256m'
