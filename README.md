@@ -58,7 +58,24 @@
    - Настраиваем правила веток.
    - От ветки develop создаем ветку init (для инициализации всего проекта + проверки работоспособности правил веток). Через данную ветку будут через PR внесены изменения в develop => main
    - Подготавливаем конфигурации в некоторой базе 1С для импорта в EDT.
-   - Импортируем конфигурации в EDT, подключаем remote репозиторий, подключаем скрипты (./scripts), пушим в ветку init
-   - Создаем конфигурацию сборки 
+   - Импортируем конфигурации в EDT, подключаем remote репозиторий, подключаем скрипты (./scripts), пушим в ветку init, через PR мержим в develop, main
+   - Создаем конфигурацию сборки
+     ```
+     stages:          # List of stages for jobs, and their order of execution
+       - build
+      
+     build-job:       # This job runs in the build stage, which runs first.
+        stage: build
+        script:
+          - oscript ./scripts/edt_build.os
+        artifacts:
+          untracked: true
+          when: on_success
+          access: all
+          expire_in: 30 days
+          paths:
+            - "artifacts/*.cf*"
+     ```
+      
 
 
