@@ -1,6 +1,6 @@
 # Развертка разработческого контура 1С EDT
 ## 1. Инфраструктура
-   1. Необходимые компоненты:
+   Необходимые компоненты:
       - Платформа 1С: Предприятие
       - 1C: EDT
       - onescript (с библиотеками)
@@ -8,9 +8,9 @@
       - gitlab сервер
       - gitlab-runner (./gitlab-ce/docker-compose.yml)
       - nginx proxy manager (./nginx-pm/docker-compose.yml)
-   2. Сервер разработки
-      Операционная система: MS Server 2019+
-      Установленные компоненты:
+   Сервер разработки
+     - Операционная система: MS Server 2019+
+     - Установленные компоненты:
          - docker engine (Docker Desktop)
          - nginx pm
          - Платформа 1С: Предприятие
@@ -18,9 +18,9 @@
          - vscode
          - Сервер 1С (уточнение)
          - СУБД MS SQL (уточнение)
-   3. Сервер автоматизации
-      Операционная система: Ubuntu 22.04 (Server, Desktop)
-      Установленные компоненты:
+   Сервер автоматизации
+     - Операционная система: Ubuntu 22.04 (Server, Desktop)
+     - Установленные компоненты:
          - [docker engine](https://docs.docker.com/engine/install/)
          - [nginx pm](https://nginxproxymanager.com/setup/)
          - Платформа [1С: Предприятие](https://releases.1c.ru/project/Platform83)
