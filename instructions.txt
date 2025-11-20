@@ -1,0 +1,53 @@
+
+ИНТЕГРАЦИЯ С SONARQUBE
+
+1. Нужно импортировать сертификат GitLab в Java, которая установлена на сервере SonarQube,
+   иначе будет ошибка в Sonar "Could not validate GitLab url. Got an unexpected answer"
+
+   Перед выпуском сертификата, сперва нужно куда-нибудь переместить тот сертификат 
+   (открытая и закрытая его части), который был создан при установке GitLab 
+   (он подходит для ГитКонвертер, но не подойдёт потом для SonarQube). 
+   По умолчанию сертификаты в GitLab находятся в /etc/gitlab/ssl/
+
+   Для выпуска сертификата при помощи OpenSSL нужно выполнить следующую команду:
+
+   sudo openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
+    -subj "/C=RU/ST=MO/L=MO/O=EXP/OU=EXP/CN=<gitlab-hostname>" \
+    -addext "subjectAltName = DNS:<gitlab-hostname>, IP:<gitlab-hostip>" \
+    -keyout /home/<user>/cert-gitlab-openssl/<gitlab-hostname>.key \
+    -out /home/<user>/cert-gitlab-openssl/<gitlab-hostname>.crt
+
+   , где:
+    * <gitlab-hostname> - имя хоста gitlab, напр. gitlab.example.com
+    * <gitlab-hostip> - ip хоста, на котором стоит gitlab (ip докер контейнера)
+    * <user> - имя пользователя, в чей каталог будут сброшены сертификаты 
+
+    В данном примере будет выпущен сертификат на 365 дней с произвольными данными о компании и её нахождении.
+    CN=<имя сервера GitLab> - в данном случае имя сервера в сертификате должно совпадать с результатом вывода команды hostname
+    subjectAltName = DNS: =<имя сервера GitLab> - обязательный параметр без которого не будет связи между GitLab и SonarQube
+    -keyout /home/admin/cert-gitlab-openssl/=<имя сервера GitLab>.key - задаёт путь и имя файла закрытой части сертификата. Имя файла должно быть обязательно аналогично имени сервера, как в выводе команды hostname.
+    -out /home/admin/cert-gitlab-openssl/=<имя сервера GitLab>.crt - задаёт путь и имя файла открытой части сертификата. Имя файла должно быть обязательно аналогично имени сервера, как в выводе команды hostname.
+
+    Сгенерированные файлы сертификата (.crt, .key) помещаем в каталог /etc/gitlab/ssl/
+
+    #####
+        Для docker-compose.yml помещаем указатели на сертификаты внутрь GITLAB_OMNIBUS_CONFIG
+        nginx['ssl_certificate'] = "/etc/gitlab/ssl/<gitlab-hostname>.crt"
+        nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/<gitlab-hostname>.key"
+    #####
+
+    В файле /etc/gitlab/gitlab.rb отключаем Let’s Encrypt, чтобы GitLab сам себе не выпустил сертификат и не затёр тот, который сгенерирован при помощи OpenSSL:
+    # letcencrypt['enable'] = false
+
+    После этого нужно выполнить команду: sudo gitlab-ctl reconfigure. Дожидаемся окончания выполнения команды.
+
+    Теперь сертификаты надо скопировать в java SonarQube.
+    
+    keytool -import -alias GitLabCACert 
+    -file <CERT_PATH/CERT_NAME>.crt -keystore "<JAVA_PATH>/lib/security/cacerts" -storepass changeit
+
+    #####
+        Например для Sonar в docker путь до java /opt/java/openjdk/lib/security/cacerts 
+    #####
+
+    
