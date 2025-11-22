@@ -1,0 +1,11 @@
+services:
+  server:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner-1
+    restart: always
+    extra_hosts:
+      - "gitlab.userv.ru:10.13.8.11"
+    volumes:
+      - /srv/gitlab-runner/config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/gitlab-runner/certs:/etc/gitlab-runner/certs 

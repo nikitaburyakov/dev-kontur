@@ -1,0 +1,35 @@
+stages:
+  - sonarqube-check
+
+variables:
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"
+    
+sonarqube-analysis:
+  stage: sonarqube-check
+  image: 
+    name: sonarsource/sonar-scanner-cli:latest
+    pull_policy: if-not-present
+  script:
+    - |
+      # Всегда анализируем все файлы, но принудительно обновляем анализ
+      sonar-scanner \
+        -Dsonar.projectKey=testedt \
+        -Dsonar.host.url=${SONAR_HOST_URL} \
+        -Dsonar.token=${SONAR_TOKEN} \
+        -Dsonar.sources=. \
+        -Dsonar.inclusions=**/*.bsl,**/*.os \
+        -Dsonar.language=bsl \
+        -Dsonar.ssl.verify=false \
+        -Dsonar.qualitygate.wait=true \
+        -Dsonar.qualitygate.timeout=300 \
+        -Dsonar.branch.name=${CI_COMMIT_REF_NAME} \
+        -Dsonar.branch.target=develop \
+        -Dsonar.scm.forceReloadAll=true \
+        -Dsonar.analysis.cache.enabled=false \
+        -Dsonar.verbose=true
+  allow_failure: false 
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'develop'
+  tags:
+    - sonar

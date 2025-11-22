@@ -1,7 +1,15 @@
 
 ИНТЕГРАЦИЯ С SONARQUBE
 
-1. Нужно импортировать сертификат GitLab в Java, которая установлена на сервере SonarQube,
+---------------------------------------------
+1. ВЫПУСК САМОПОДПИСАННЫХ СЕРТИФИКАТОВ
+---------------------------------------------
+
+
+   ###################### 
+   ВЫПУСК СЕРТИФКАТА НА GITLAB
+
+   Нужно импортировать сертификат GitLab в Java, которая установлена на сервере SonarQube,
    иначе будет ошибка в Sonar "Could not validate GitLab url. Got an unexpected answer"
 
    Перед выпуском сертификата, сперва нужно куда-нибудь переместить тот сертификат 
@@ -14,40 +22,116 @@
    sudo openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
     -subj "/C=RU/ST=MO/L=MO/O=EXP/OU=EXP/CN=<gitlab-hostname>" \
     -addext "subjectAltName = DNS:<gitlab-hostname>, IP:<gitlab-hostip>" \
-    -keyout /home/<user>/cert-gitlab-openssl/<gitlab-hostname>.key \
-    -out /home/<user>/cert-gitlab-openssl/<gitlab-hostname>.crt
+    -keyout <path-to-cert>/<gitlab-hostname>.key \
+    -out <path-to-cert>/<gitlab-hostname>.crt
 
    , где:
     * <gitlab-hostname> - имя хоста gitlab, напр. gitlab.example.com
     * <gitlab-hostip> - ip хоста, на котором стоит gitlab (ip докер контейнера)
+    * <path-to-cert> - путь, куда класть сертификаты (можно не указывать - в текущий каталог)
     * <user> - имя пользователя, в чей каталог будут сброшены сертификаты 
 
-    В данном примере будет выпущен сертификат на 365 дней с произвольными данными о компании и её нахождении.
-    CN=<имя сервера GitLab> - в данном случае имя сервера в сертификате должно совпадать с результатом вывода команды hostname
-    subjectAltName = DNS: =<имя сервера GitLab> - обязательный параметр без которого не будет связи между GitLab и SonarQube
-    -keyout /home/admin/cert-gitlab-openssl/=<имя сервера GitLab>.key - задаёт путь и имя файла закрытой части сертификата. Имя файла должно быть обязательно аналогично имени сервера, как в выводе команды hostname.
-    -out /home/admin/cert-gitlab-openssl/=<имя сервера GitLab>.crt - задаёт путь и имя файла открытой части сертификата. Имя файла должно быть обязательно аналогично имени сервера, как в выводе команды hostname.
+    обязательно поменять права на файлы chmod 644 <path-to-cert>/<gitlab-hostname>*
 
     Сгенерированные файлы сертификата (.crt, .key) помещаем в каталог /etc/gitlab/ssl/
 
-    #####
-        Для docker-compose.yml помещаем указатели на сертификаты внутрь GITLAB_OMNIBUS_CONFIG
-        nginx['ssl_certificate'] = "/etc/gitlab/ssl/<gitlab-hostname>.crt"
-        nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/<gitlab-hostname>.key"
-    #####
-
     В файле /etc/gitlab/gitlab.rb отключаем Let’s Encrypt, чтобы GitLab сам себе не выпустил сертификат и не затёр тот, который сгенерирован при помощи OpenSSL:
-    # letcencrypt['enable'] = false
+    letcencrypt['enable'] = false
 
     После этого нужно выполнить команду: sudo gitlab-ctl reconfigure. Дожидаемся окончания выполнения команды.
+
+
+
+    ######################
+    НАСТРОЙКА NGINX-PM
+
+    добавляем SSL сертификат:
+    название, напр. userv.ru
+    подцепляем <gitlab-hostname>.key, <gitlab-hostname>.crt
+    создаем proxy-host:
+        domain names: <gitlab-hostname>
+        scheme: https
+        hostname: ip адрес машины с контейнером (напр 192.168.0.80)
+        forward port: порт который проброшен на 443 порт контейнера (напр. 5443)
+
+
+
+    ######################
+    НАСТРОЙКА SONARQUBE
 
     Теперь сертификаты надо скопировать в java SonarQube.
     
     keytool -import -alias GitLabCACert 
     -file <CERT_PATH/CERT_NAME>.crt -keystore "<JAVA_PATH>/lib/security/cacerts" -storepass changeit
 
-    #####
+    ---
         Например для Sonar в docker путь до java /opt/java/openjdk/lib/security/cacerts 
-    #####
+    ---
 
-    
+
+
+    ######################
+    НАСТРОЙКА GITLAB-RUNNER (DOCKER)
+
+    готовим каталоги:
+
+    sudo mkdir -p /srv/gitlab-runner/{config,logs,certs}
+    sudo chmod -R 755 /srv/gitlab-runner
+
+    кладем сертификаты в раннер:
+    openssl s_client -connect <gitlab-hostname>:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > gitlab.crt
+    sudo cp /path/to/your/gitlab/certificate.crt /srv/gitlab-runner/certs/gitlab.crt
+
+    из каталога ./docker-gitlab-runner стартуем контейнер
+
+    добавляем runner в gitlab, копируем токен для нового раннера
+
+    # Заходим в контейнер
+    docker exec -it gitlab-runner bash
+
+    # Регистрируем runner
+    gitlab-runner register
+
+    тут надо будет заполнить хосты и токен и остальное, раннер должен появиться как активный в gitlab
+
+---------------------------------------------
+2. ИНТЕГРАЦИЯ GITLAB И SONARQUBE
+---------------------------------------------
+
+    1. Создаем отдельного пользователя в GitLab:
+      name: sonarqube
+      pass: {password}
+
+      делаем ему через его учетную запись токен авторизации (можно сунуть все права чтобы не было проблем),
+      токен сохраняем - он будет нужен для sonarqube
+
+      Пользователя включаем в нужные проекты, чтобы был доступ до проектов.
+
+    2. Создаем отдельного пользователя в SonarQube:
+      name: gitlab
+      pass: {password}
+
+      делаем токен авторизации - он будет нужен для gitlab
+
+    3. Коннектим gitlab в sonarqube 
+
+       Администрирование - Интеграция с ALM - GitLab, там надо будет указывать хост gitlab и токен из п.1
+
+       Конфигурация должна чекаться иначе идти в логи контейнера и разбираться, возможно не резолвится хост либо не прокинут сертификат в SonarQube
+
+    4. Импортируем проект в sonarqube
+
+    5. Заходим в проект - настройки проекта - Разрешения - чекаем флаги для юзера gitlab
+
+    6. В gitlab в настройках проекта - CI/CD - задаем переменные: 
+        
+       SONAR_HOST_URL - URL хоста SonarQube
+       SONAR_TOKEN - токен из п. 2
+
+    7. подкидываем .gitlab-ci.yml в корень проекта - проверяем pipeline по PR в ветку (текущая конфа на ветку develop), разбираем ошибки
+
+
+---------------------------------------------
+3. ТЕКУЩАЯ ПРОБЛЕМАТИКА
+---------------------------------------------
+    1. GitLab-CE + SonarQube не умеет в анализ PR, делает анализ всей ветки, не умеет в декорацию PR (когда в gitlab в PR указан статус проверки)

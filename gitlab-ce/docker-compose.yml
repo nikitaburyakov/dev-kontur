@@ -1,18 +1,14 @@
-#version: '3.3'
+version: '3.3'
 services:
  web:
    image: 'gitlab/gitlab-ce:latest'
    container_name: gitlab-ce
    restart: always
-   hostname: 'gitlab.example.com'
+   hostname: 'gitlab.userv.ru'
    environment:
      GITLAB_OMNIBUS_CONFIG: |
-       external_url 'http://gitlab.example.com'
+       external_url 'https://gitlab.userv.ru' 
        gitlab_rails['gitlab_shell_ssh_port'] = 2224
-       # раскомментировать для выпуска самоподписанного сертификата,
-       # external_url поменять на https
-       # nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.example.com.crt"
-       # nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.example.com.key"
    ports:
      - '5080:80'
      - '5443:443'
