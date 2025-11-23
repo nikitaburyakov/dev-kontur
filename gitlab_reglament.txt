@@ -1,0 +1,41 @@
+Ветки:
+
+bash
+feature/123-short-description    # Рекомендуется
+bugfix/456-fix-login-issue
+hotfix/789-critical-fix
+
+Коммиты:
+
+bash
+git commit -m "Resolve #123: Add user authentication feature
+
+- Implement JWT token generation
+- Add login/logout endpoints
+- Update API documentation
+
+Closes #123"
+
+
+В Merge Request description:
+
+## Description
+Implements user authentication system
+
+## Related Issues
+Closes #123
+Fixes #456
+Related to #789
+
+## Changes
+- Added JWT authentication
+- Updated user model
+- Added login endpoints
+
+
+
+Магические слова для авто-закрытия:
+Closes #123, Fix #123, Resolves #123 - закрывает issue при мерже
+
+Related to #123 - добавляет ссылку без закрытия
+
