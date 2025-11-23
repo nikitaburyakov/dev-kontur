@@ -35,11 +35,13 @@
 
     Сгенерированные файлы сертификата (.crt, .key) помещаем в каталог /etc/gitlab/ssl/
 
-    В файле /etc/gitlab/gitlab.rb отключаем Let’s Encrypt, чтобы GitLab сам себе не выпустил сертификат и не затёр тот, который сгенерирован при помощи OpenSSL:
-    letcencrypt['enable'] = false
+    !!!ВНИМАНИЕ!!! на latest версии gitlab-EE ошибка чтения параметра letcencrypt
+    ----
+      В файле /etc/gitlab/gitlab.rb отключаем Let’s Encrypt, чтобы GitLab сам себе не выпустил сертификат и не затёр тот, который сгенерирован при помощи OpenSSL:
+      letcencrypt['enable'] = false
 
-    После этого нужно выполнить команду: sudo gitlab-ctl reconfigure. Дожидаемся окончания выполнения команды.
-
+      После этого нужно выполнить команду: sudo gitlab-ctl reconfigure. Дожидаемся окончания выполнения команды.
+    ----
 
 
     ######################
@@ -59,40 +61,56 @@
     ######################
     НАСТРОЙКА SONARQUBE
 
-    Теперь сертификаты надо скопировать в java SonarQube.
-    
-    keytool -import -alias GitLabCACert 
-    -file <CERT_PATH/CERT_NAME>.crt -keystore "<JAVA_PATH>/lib/security/cacerts" -storepass changeit
+    1. Экспортируем сертификат с GitLab
+    openssl s_client -connect <gitlab-hostname>:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > gitlab-cert.pem
 
-    ---
-        Например для Sonar в docker путь до java /opt/java/openjdk/lib/security/cacerts 
-    ---
+    2. Или используем существующий
+    cp /home/nikita/cert-gitlab-openssl/<gitlab-hostname>.crt gitlab-cert.pem
+ 
+    3. Копируем сертификат в контейнер
+    docker cp gitlab-cert.pem sonarqube-container:/tmp/gitlab-cert.pem
+
+    4. Импортируем в Java truststore
+    docker exec --user=root sonarqube-container keytool -importcert -keystore /opt/java/openjdk/lib/security/cacerts -storepass changeit -alias gitlab -file /tmp/gitlab-cert.pem -noprompt
+
+    5. Перезапускаем SonarQube
+    docker restart sonarqube-container
 
 
 
     ######################
     НАСТРОЙКА GITLAB-RUNNER (DOCKER)
 
-    готовим каталоги:
+    1. готовим каталоги:
 
     sudo mkdir -p /srv/gitlab-runner/{config,logs,certs}
     sudo chmod -R 755 /srv/gitlab-runner
 
-    кладем сертификаты в раннер:
+    2. кладем сертификаты в раннер:
     openssl s_client -connect <gitlab-hostname>:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > gitlab.crt
     sudo cp /path/to/your/gitlab/certificate.crt /srv/gitlab-runner/certs/gitlab.crt
 
-    из каталога ./docker-gitlab-runner стартуем контейнер
+    3. Запускаем контейнер
 
-    добавляем runner в gitlab, копируем токен для нового раннера
+    4. добавляем runner в gitlab, копируем токен для нового раннера
 
-    # Заходим в контейнер
+    5. Регистрируем runner
     docker exec -it gitlab-runner bash
 
-    # Регистрируем runner
-    gitlab-runner register
+    # Регистрируем runner с указанием сертификата
+    gitlab-runner register  --url <gitlab-hostname>  --token <runner-token> --tls-ca-file "/etc/gitlab-runner/certs/gitlab.crt"
+    указываем имя раннера (напр. docker-runner-1)
+    выбираем executor (напр. docker или shell)
+    если docker, выбираем базовый образ (напр. alpine:latest)
+    
+    6. Проверяем в gitlab наличие раннера
 
-    тут надо будет заполнить хосты и токен и остальное, раннер должен появиться как активный в gitlab
+    7. Меняем конфиги раннера:
+    [runners.docker]
+      # Добавляем
+      volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock"]
+      extra_hosts = ["<gitlab-hostname>:<ip-host>"] # <ip-host> - хост на котором стоит докер контейнер 
+      dns = ["8.8.8.8", "8.8.4.4"]
 
 ---------------------------------------------
 2. ИНТЕГРАЦИЯ GITLAB И SONARQUBE
@@ -125,13 +143,17 @@
 
     6. В gitlab в настройках проекта - CI/CD - задаем переменные: 
         
-       SONAR_HOST_URL - URL хоста SonarQube
+       SONAR_HOST_URL - URL хоста SonarQube (http://<ip-host>:9000)
        SONAR_TOKEN - токен из п. 2
 
     7. подкидываем .gitlab-ci.yml в корень проекта - проверяем pipeline по PR в ветку (текущая конфа на ветку develop), разбираем ошибки
 
-
+    8. чтобы работали декораторы PR из Sonar следует обязательно проверить настройки:
+      - Настройки проекта - Интеграция с платформой DevOps 
+      - Администрирование - Общие - Images base URL / Server base URL
+      - 
 ---------------------------------------------
 3. ТЕКУЩАЯ ПРОБЛЕМАТИКА
 ---------------------------------------------
     1. GitLab-CE + SonarQube не умеет в анализ PR, делает анализ всей ветки, не умеет в декорацию PR (когда в gitlab в PR указан статус проверки)
+    - решение - переход на gitlab-ee  в docker
