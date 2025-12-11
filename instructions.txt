@@ -114,6 +114,30 @@
       extra_hosts = ["<gitlab-hostname>:<ip-host>"] # <ip-host> - хост на котором стоит докер контейнер 
       dns = ["8.8.8.8", "8.8.4.4"]
 
+    ######################
+    НАСТРОЙКА GITLAB-RUNNER (WINDOWS)
+
+    1. готовим каталоги:
+
+    Создаем папку "C:\Gitlab-Runner", ставим туда раннер
+
+    2. кладем сертификаты в этот же каталог раннера:
+    openssl s_client -connect <gitlab-hostname>:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM > gitlab.crt
+     *  <gitlab-hostname> = gitlab.example.com 
+
+    
+    3. добавляем runner в gitlab, копируем токен для нового раннера
+
+    4. Регистрируем runner
+    # Регистрируем runner с указанием сертификата
+    cd C:\Gitlab-Runner
+    gitlab-runner register  --url <gitlab-hostname>  --token <runner-token> --tls-ca-file "C:\GitLab-Runner\gitlab.crt" {возможно "C:\\GitLab-Runner\\gitlab.crt"}
+    указываем имя раннера (напр. windows-runner-1)
+    выбираем executor (напр. shell:pwsh)
+    
+    6. Проверяем в gitlab наличие раннера
+
+
 ---------------------------------------------
 2. ИНТЕГРАЦИЯ GITLAB И SONARQUBE
 ---------------------------------------------
