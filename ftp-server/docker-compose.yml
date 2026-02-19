@@ -1,0 +1,16 @@
+services:
+  ftp:
+    image: garethflowers/ftp-server
+    container_name: ftp-server
+    ports:
+      - "5021:21"
+      - "5000-5009:5000-5009"
+    volumes:
+      - /home/ftp/upload:/home/username
+    environment:
+      - FTP_USER=username
+      - FTP_PASS=mypass
+      - PASV_ADDRESS=10.13.8.11
+      - PASV_MIN=5000
+      - PASV_MAX=5009
+    restart: always
