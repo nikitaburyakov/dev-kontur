@@ -1,0 +1,23 @@
+services:
+  # ОС Linux (CPU, RAM, Disk, Network)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: always
+    network_mode: host
+    pid: host
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+
+  # PostgreSQL
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    restart: always
+    network_mode: host
+    environment:
+      - DATA_SOURCE_URI=localhost:5432/postgres?sslmode=disable
+      - DATA_SOURCE_USER=postgres # PG user
+      - DATA_SOURCE_PASS=password # PG password

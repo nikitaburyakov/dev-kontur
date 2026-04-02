@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s # Как часто собирать метрики
+
+scrape_configs:
+  # Мониторинг Ubuntu сервера (ОС)
+  - job_name: 'ubuntu_node'
+    static_configs:
+      - targets: ['<IP адрес>:9100']
+        labels:
+          server_type: 'linux'
+          os_role: 'database_host'
+
+  # Мониторинг PostgreSQL
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['<IP адрес>:9187']
+        labels:
+          db_type: 'postgresql'
