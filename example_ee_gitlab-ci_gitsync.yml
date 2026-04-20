@@ -6,8 +6,6 @@ gitsync-start:
     stage: gitsync
     variables:
       GIT_STRATEGY: none
-      GIT_DEPTH: 1
-      GIT_LFS_SKIP_SMUDGE: "1"
     script:
 
      - |
