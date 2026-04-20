@@ -130,4 +130,24 @@
    http.sslverify=false                       # для https и самоподписанных сертификатов
    http.postbuffer=1048576000                 # для передачи больших данных по сети
    ```
+## Настройка проекта gitlab
 
+1. Подготовить инстанс (интеграция с SonarQube, настроить пользователей, настроить и подключить раннеры и т.д.).
+2. В настройках проекта настраиваем ветку по умолчанию и правила веток (напр. main-protected, ветка по-умолчанию - develop).
+3. Импортируем проект в SonarQube:
+   Необходимо установить variables в настройках CI проекта:
+   ```
+   SONAR_HOST_URL: Адрес сервера
+   SONAR_TOKEN: Токен, полученный из SonarQube
+   ```
+   В корне репозитория создаем файл sonar-project.properties:
+   ```
+   sonar.projectKey=firstbit_impex_133ed269-476b-4dfe-836a-f3aae9db3e1d # из SonarQube
+   sonar.qualitygate.wait=true
+   sonar.inclusions=**/*.bsl,**/*.os
+   sonar.exclusions=**/*.gif, **/*.zip, **/*.svg, **/*.png, **/*.bmp, **/*.jpg, **/*.ico, **/*.cf # для анализа ParentConfigurations.bin (не отключаем инициализацию LFS)
+   sonar.sourceEncoding=UTF-8
+   sonar.ssl.verify=false
+   sonar.qualitygate.timeout=1800
+   ```   
+5. Создаем 
