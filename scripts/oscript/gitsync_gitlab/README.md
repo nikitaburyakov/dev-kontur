@@ -90,3 +90,44 @@
    gitsync enable sync-remote # install не обязательно
    gitsync enable increment
    ```
+4. Создаем репозиторий в gitlab (с инициализацией)
+5. Клонируем локально туда, где будет находиться рабочий каталог.
+6. Инициализируем gitsync:
+   ```
+   gitsync init --storage-user ServiceUser       # имя пользователя хранилища
+                --storage-pwd 123654             # пароль пользователя хранилища
+                 {-e bit_ДоработкиАдаптация}     # имя расширения, если это расширение
+                 tcp://localhost:2555/test/main  # адрес хранилища
+                 E:\GIT\test\main                # каталог внутри репозитория
+   ```
+   gitsync создаст 2 файла внутри каталога:
+   - AUTHORS - идентификация комиттеров по имени пользователя хранилищ
+   - VERSION - хранит версию хранилища на момент последней синхронизации
+7. Заполняем файл AUTHORS согласно рабочим данным:
+   ```
+   IIIvanov=Ivan Ivanov <iiivanov@1cbit.ru>
+   ```
+8. Настраиваем репозиторий:
+   - добавляем ConfigDumpInfo.xml в .gitignore
+   - включаем LFS в .gitattributes
+   ```
+    *.cf filter=lfs diff=lfs merge=lfs -text
+    *.bin filter=lfs diff=lfs merge=lfs -text
+    *.png filter=lfs diff=lfs merge=lfs -text
+    *.gif filter=lfs diff=lfs merge=lfs -text
+    *.bmp filter=lfs diff=lfs merge=lfs -text
+    *.jpg filter=lfs diff=lfs merge=lfs -text
+    *.zip filter=lfs diff=lfs merge=lfs -text
+   ```
+   - проверяем дополнительные настройки:
+   ```
+   core.longpaths=true                        #  поддержка длинных путей Windows
+   filter.lfs.clean=git-lfs clean -- %f       # LFS 
+   filter.lfs.smudge=git-lfs smudge -- %f     # LFS
+   filter.lfs.process=git-lfs filter-process  # LFS
+   filter.lfs.required=true                   # LFS
+   safe.directory=*                           # если есть проблемы с доступом в каталоги git
+   http.sslverify=false                       # для https и самоподписанных сертификатов
+   http.postbuffer=1048576000                 # для передачи больших данных по сети
+   ```
+
