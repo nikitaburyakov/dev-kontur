@@ -1,0 +1,49 @@
+stages:      
+  - gitsync
+  - sonarqube-check
+
+gitsync-start:
+    stage: gitsync
+    variables:
+      GIT_STRATEGY: none
+      GIT_DEPTH: 1
+      GIT_LFS_SKIP_SMUDGE: "1"
+    script:
+
+     - |
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+      $OutputEncoding = [System.Text.Encoding]::UTF8
+            
+      oscript "$LOCAL_SCRIPT_CATALOG\gitsync.os"
+      
+      exit $LASTEXITCODE
+    tags:
+    - gitsync 
+    rules:
+    - if: $CI_PIPELINE_SOURCE == 'trigger'   
+    - if: $CI_PIPELINE_SOURCE == 'web'       
+    - if: $CI_PIPELINE_SOURCE == 'schedule'  
+      when: never
+
+sonarqube-analysis:
+  stage: sonarqube-check
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"                     
+    GIT_STRATEGY: fetch
+  image: 
+    name: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}"
+  allow_failure: false 
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'trigger' && $CI_COMMIT_BRANCH == 'develop'
+    - if: $CI_COMMIT_BRANCH == 'develop'
+      changes:
+        - "**/*.bsl"
+        - "**/*.os"
+  tags:
+    - sonar
+  needs:
+    - gitsync-start
