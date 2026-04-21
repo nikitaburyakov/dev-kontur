@@ -1,5 +1,5 @@
 
-ИНТЕГРАЦИЯ С SONARQUBE
+ИНТЕГРАЦИЯ GITLAB С SONARQUBE
 
 ---------------------------------------------
 1. ВЫПУСК САМОПОДПИСАННЫХ СЕРТИФИКАТОВ
@@ -163,7 +163,7 @@
 
        Конфигурация должна чекаться иначе идти в логи контейнера и разбираться, возможно не резолвится хост либо не прокинут сертификат в SonarQube
 
-    4. Импортируем проект в sonarqube
+    4. Импортируем проект в sonarqube (Проекты - Создать проект - Из gitlab)
 
     5. Заходим в проект - настройки проекта - Разрешения - чекаем флаги для юзера gitlab
 
@@ -183,3 +183,196 @@
 ---------------------------------------------
     1. GitLab-CE + SonarQube не умеет в анализ PR, делает анализ всей ветки, не умеет в декорацию PR (когда в gitlab в PR указан статус проверки)
     - решение - переход на gitlab-ee  в docker
+
+
+-------------------------------------------------------
+-------------------------------------------------------
+
+-----------------------------------------------------------
+УСТАНОВКА СЕРВЕРА ХРАНИЛИЩ
+------------------------------------------------------------
+
+для Linux:
+    ./crserver -daemon -port 1542 -d <ПутьККаталогуХранилищ>
+для Windows:
+    crserver.exe -instsrvc -usr .\USR1CV8 -pwd password -start -port 1542 -d <ПутьККаталогуХранилищ
+
+НАСТРОЙКА ВЕБ СЕРВЕРА
+
+Версия для apache 2.4.
+
+В файле apache2.conf добавляем:
+
+    LoadModule _1cws_module /opt/1cv8/x86_64/<ВерсияПлатформы>/wsap24.so
+
+    Alias "/repos" "/var/1C/www/repos"
+    <Directory "/var/1C/www/repos">
+        AllowOverride None
+        Options None
+        Require all granted    
+        SetHandler 1c-application
+    </Directory>
+
+где
+    /repos - адрес ресурса (напр. для каталога с храном test1 будет путь .../repos/test1)
+    /var/1C/www/repos - путь до каталога файла *.1ccr
+    
+    В папке корневого каталога хранилищ создать файл *.1ccr, напр.: repo.1ccr:
+    <?xml version="1.0" encoding="UTF-8"?>
+    <repository connectString="tcp://127.0.0.1"/>
+
+    где tcp://127.0.0.1 - адрес сервера хранилищ
+
+ВАЖНО: не путать каталоги: 
+    ПутьККаталогуХранилищ - каталог, где физически будут созданы хранилища - нужны права пользователю USR1CV8
+    /var/1C/www/repos - путь к файлу *.1ccr - нужны права пользователя apache2 (в linux - www-data)
+
+Доступ к хранилищу осуществляется на примере выше:
+    tcp://localhost/test1
+    http://localhost/repos/repo.1ccr/test1
+
+Для linux создаем службу: /etc/systemd/system/crs1cv8-8.3.27.2074.service
+
+    [Unit]
+    Description=1C:Enterprise CRS Server 8.3 (8.3.27.2074)
+    [Service]
+    ExecStart=/opt/1cv8/x86_64/8.3.27.2074/crserver -d /home/usr1cv8/.1cv8/1C/1cv8/repos
+    RemainAfterExit=yes
+    User=usr1cv8
+    Group=grp1cv8
+    [Install]
+    WantedBy=multi-user.target
+
+в этом случае каталог хранилищ - /home/usr1cv8/.1cv8/1C/1cv8/repos
+
+
+-----------------------------------------------------------
+СОЗДАНИЕ ПРОКСИ СЕРВЕРА ХРАНИЛИЩ
+------------------------------------------------------------
+
+ставим OneScript
+opm install oproxy
+
+создаем и идем в каталог, где будет лежать файл проверки
+cd D:\oproxy_catalog
+oproxy init
+
+для Windows
+    oproxy create-daemon --proxy-port 2555 --storage-server localhost --storage-port 2542 --check-file E:\Repositories\oproxy\ПроверкиПроксиСервера.os,
+    где:
+        --proxy-port 2555 - порт прокси - туда надо будет подключаться к хранилищу напр.: tcp://localhost:2555/test/main
+        --storage-server localhost - сервер хранилищ
+        --storage-port 2542 - порт сервера хранилищ (лучше изменять в службе, чтобы разрабы не ходили в стандартный порт)
+        --check-file E:\Repositories\oproxy\ПроверкиПроксиСервера.os - файл проверки
+
+---------------------------------------------------------------
+НАСТРОЙКА GIT SYNC
+---------------------------------------------------------------
+
+устанавливаем gitsync
+opm install gitsync
+
+ставим плагины sync-remote, increment
+
+    gitsync p init
+    gitsync enable sync-remote
+    gitsync enable increment
+
+создаем каталог для локального git репозитория
+напр. E:/GIT/test/main + E:/GIT/test/bit_ДоработкиАдаптация
+
+создаем на git сервере репозиторий
+в каталоге git (E:/GIT/test) инициализируем репозиторий
+git init
+подключаем origin по инструкции git сервера, типа:
+    cd existing_repo
+    git remote add origin https://gitlab.userv.ru/firstbit/testrepos.git
+    git branch -M main
+    git push -uf origin main
+
+добавлем ConfigDump  в .gitignore
+
+gitsync init --storage-user ServiceUser --storage-pwd 123654 tcp://localhost:2555/test/main E:\GIT\test\main
+gitsync init --storage-user ServiceUser --storage-pwd 123654 -e bit_ДоработкиАдаптация tcp://localhost:2555/test/bit_ДоработкиАдаптация E:\GIT\test\bit_ДоработкиАдаптация
+
+В каталогах появляются файлы AUTHORS и VERSION
+Правим файлы AUTHORS, привязывая пользователей:
+Администратор=Администратор <Администратор@localhost>
+IIIvanov=Ivan Ivanov <iiivivanov@test.ru>
+
+выполняем первичную синхронизацию:
+    gitsync sync -u ServiceUser -p 123654 -d --PS -b develop -i tcp://localhost:2555/test/main E:\GIT\test\main https://gitlab.userv.ru/firstbit/testrepos.git
+      
+    gitsync sync -u ServiceUser -p 123654 -e bit_ДоработкиАдаптация -d --PS -b develop -i tcp://localhost:2555/test/bit_ДоработкиАдаптация E:\GIT\test\bit_ДоработкиАдаптация https://gitlab.userv.ru/firstbit/testrepos.git
+
+По умолчанию gitsync использует временную файловую БД для выполнения операций с хранилищем, это занимает некоторое время для ERP.
+Можно подкинуть параметр --ibconnection с путем к базе, подключенной к хранилищу (до команды sync{s})
+
+gitsync  
+    -C /Slocalhost/test_dev_2 // путь к базе, для аутентификации (если нужна) добавить параметры -U user -P password
+    s                         // команда sync
+    -u ServiceUser -p 123654  // аутентификация в хранилище
+    -d                        // не искать src
+    --PS                      // [sync-remote] плагин - отправляем изменения в origin 
+    -b develop                // [sync-remote] плагин - имя ветки
+    -t postgresql             // [*use-ibcmd] плагин - тип СУБД 
+    -n test_dev_2             // [*use-ibcmd] плагин - имя БД 
+    -U ServiceUser -P 123654  // [*use-ibcmd] плагин - аутентификация в БД
+    -j 4                      // [*use-ibcmd] плагин - Количество потоков при экспорте 
+    -i                        // [*use-ibcmd] плагин - инкрементальная выгрузка конфигурации
+    tcp://localhost:2555/test/main                  // путь к хранилищу
+    E:\GIT\test\main                                // путь к каталогу в git репозитории
+    https://gitlab.userv.ru/firstbit/testrepos.git  // адрес удаленного репозитория
+
+gitsync -C /Slocalhost/test_dev_2 -U ServiceUser -P 123654 s -e bit_ДоработкиАдаптация -u ServiceUser -p 123654 -d --PS -b develop -t postgresql -n test_dev_2 -U postgres -P 5g2bMD5sMPG3 -j 4 -i tcp://localhost:2555/test/bit_ДоработкиАдаптация E:\GIT\test\bit_ДоработкиАдаптация https://gitlab.userv.ru/firstbit/testrepos.git
+
+ВНИМАНИЕ!!! ПРОБЛЕМЫ В РАБОТЕ С РАСШИРЕНИЯМИ:
+    - use-ibcmd не работает с расширением, падает в ошибку (его не включаем, оставляем increment)
+    - расширения служебной БД должны быть отключены от хранилищ (падает в ошибку)
+
+    gitsync -C /Slocalhost/test_dev_2 -U ServiceUser -P 123654 s -u ServiceUser -p 123654 -d --PS -b develop tcp://localhost:2555/test/main 
+        E:\GIT\test\main https://gitlab.userv.ru/firstbit/testrepos.git
+
+    gitsync -C /Slocalhost/test_dev_2 -U ServiceUser -P 123654 s -e bit_ДоработкиАдаптация -u ServiceUser -p 123654 -d --PS -b develop tcp://localhost:2555/test/bit_ДоработкиАдаптация 
+        E:\GIT\test\bit_ДоработкиАдаптация https://gitlab.userv.ru/firstbit/testrepos.git
+
+-----------------------------------------------------------------------------------
+OPROXY: СОЗДАНИЕ ПАЙПЛАЙНА GITLAB ДЛЯ СОЗДАНИЯ ОЧЕРЕДЕЙ ЗАДАНИЙ НА ЗАПУСК GITSYNC
+-----------------------------------------------------------------------------------
+Чтобы избежать одновременного запуска oscript с использованием одного и того же репозитория (при одновременном помещении в хранилище несколькими пользователями), сделаем вместо явного запуска gitsync обращение к api pipeline gitlab - будет строиться очередь выполнения - все отработает штатно.
+
+для обрашения по api необходимо получить trigger token в настройках проекта - CI/CD - Pipeline trigger token.
+
+Пример обращения по апи для старта gitlab (из документации):
+    curl --request POST \
+     "https://gitlab.example.com/api/v4/projects/<project_id>/trigger/pipeline?token=<token>&ref=<ref_name>"
+
+    Код ответа при успешном запуске = 201
+-----------------------------------------------------------------------------------------
+ИНТЕГРАЦИЯ SONARQUBE  С GITLAB
+-----------------------------------------------------------------------------------------
+расширяем pipeline сонаром:
+sonarqube-analysis:
+  stage: sonarqube-check
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"                          # Нужно для истории изменений
+    GIT_LFS_SKIP_SMUDGE: "1"
+    GIT_STRATEGY: fetch
+  image: 
+    name: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}"
+  allow_failure: false 
+  rules:
+    # Запускаем при push в develop (не merge request)
+    - if: $CI_COMMIT_BRANCH == 'develop' && $CI_PIPELINE_SOURCE == 'push'
+      changes:
+        - "**/*.bsl"
+        - "**/*.os"
+  tags:
+    - sonar
+
+Сонар начинает сканить все подряд, несмотря на настройку with support lock
+    tg:
+    Вариант Б. Как подсказывал @nixel2007 - задать параметр configurationRoot в конфиге
