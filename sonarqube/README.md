@@ -77,3 +77,19 @@
    > - Secret из GitLab
    > - URL GitLab
    > - Allow users to sign up - V
+
+## Включение git-lfs для [sonarsource/sonar-scanner-cli:latest](https://hub.docker.com/r/sonarsource/sonar-scanner-cli)
+
+1. Собираем Dockerfile:
+   ```
+   FROM sonarsource/sonar-scanner-cli:latest
+   USER root
+   RUN yum install -y git-lfs
+   USER scanner-cli
+   ```
+2. Билдим образ:
+   ```
+   docker build -t sonar-scanner-cli-lfs:latest .
+   ```
+3. Меняем в pipeline GitLab имя базового образа на ```sonar-scanner-cli-lfs:latest```
+   
