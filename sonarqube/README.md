@@ -61,3 +61,19 @@
 > Чтобы этот механизм работал корректно, требуется проверить настройки SonarQube:
 > - Project - Settings - DevOps Platform Integration
 > - Adminstration - General - Server base URL
+
+## Настройка авторизации OAuth 2.0 через GitLab
+
+1. На стороне GitLab создаем новое приложение:
+   > Admin - Applications - Add new application
+   > - Name: SonarQube Server
+   > - Redirect URI: <URL_SonarQube>/oauth2/callback/gitlab. Напр.: https://sonarqube-instance.com/oauth2/callback/gitlab
+2. Scopes:
+   > - read_user
+3. На стороне SonarQube:
+   > Administration → Configuration → General Settings → Authentication → GitLab \
+   > Создаем конфигурацию:
+   > - Application ID из GitLab
+   > - Secret из GitLab
+   > - URL GitLab
+   > - Allow users to sign up - V
