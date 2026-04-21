@@ -110,15 +110,19 @@
 8. Настраиваем репозиторий:
    - добавляем ConfigDumpInfo.xml в .gitignore
    - включаем LFS в .gitattributes
-   ```
+    ```
     *.cf filter=lfs diff=lfs merge=lfs -text
-    *.bin filter=lfs diff=lfs merge=lfs -text
     *.png filter=lfs diff=lfs merge=lfs -text
     *.gif filter=lfs diff=lfs merge=lfs -text
     *.bmp filter=lfs diff=lfs merge=lfs -text
     *.jpg filter=lfs diff=lfs merge=lfs -text
     *.zip filter=lfs diff=lfs merge=lfs -text
-   ```
+    *.bin filter=lfs diff=lfs merge=lfs -text
+
+    # Это, если файл нужен без LFS (для sonar-scanner)
+    ERP/Ext/ParentConfigurations.bin !filter !diff !merge -text
+    ERP/Ext/ParentConfigurations.bin !text !filter !merge !diff
+    ```
    - проверяем дополнительные настройки:
    ```
    core.longpaths=true                        #  поддержка длинных путей Windows
