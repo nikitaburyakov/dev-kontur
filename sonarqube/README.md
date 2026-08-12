@@ -1,3 +1,21 @@
+# Установка SonarQube
+
+При возникновении ошибки
+```
+bootstrap check failure [1] of [1]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]; for more information see [https://www.elastic.co/guide/en/elasticsearch/reference/8.16/bootstrap-checks-max-map-count.html]
+```
+необходимо увеличить количество виртуальных областей памяти (vm.max_map_count):
+```
+# 1. Добавляем настройку в файл sysctl.conf
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+
+# 2. Применяем изменения
+sudo sysctl -p
+
+# 3. Проверяем, что значение применилось
+sysctl vm.max_map_count
+```
+
 # Настройка интеграции GitLab и SonarQube
 
 ## Импорт самоподписанного сертификата GitLab:
