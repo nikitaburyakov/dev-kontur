@@ -1,19 +1,19 @@
 stages:
   - sonarqube-check
-
-variables:
-  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
-  GIT_DEPTH: "0"
-    
+  - build
+  - deploy
+   
 sonarqube-analysis:
   stage: sonarqube-check
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+    GIT_LFS_SKIP_SMUDGE: "1"
   image: 
     name: sonarsource/sonar-scanner-cli:latest
   script:
     - |
-      # Всегда анализируем все файлы, но принудительно обновляем анализ
       sonar-scanner \
-        -Dsonar.projectKey=testproject \
         -Dsonar.host.url=${SONAR_HOST_URL} \
         -Dsonar.token=${SONAR_TOKEN} \
         -Dsonar.sources=. \
@@ -24,38 +24,68 @@ sonarqube-analysis:
         -Dsonar.pullrequest.branch=${CI_COMMIT_REF_NAME} \
         -Dsonar.pullrequest.base=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME} \
         -Dsonar.pullrequest.provider=gitlab \
-        -Dsonar.pullrequest.gitlab.repositoryUrl=${CI_REPOSITORY_URL} \
-        -Dsonar.pullrequest.gitlab.projectId=${CI_PROJECT_ID} \
-        -Dsonar.pullrequest.gitlab.commitSha=${CI_COMMIT_SHA} \
-        -Dsonar.pullrequest.gitlab.mergeRequestIid=${CI_MERGE_REQUEST_IID} \
+        -Dsonar.scm.provider=git \
         -Dsonar.qualitygate.wait=true \
-        -Dsonar.qualitygate.timeout=600
-        # ↓↓↓ ДОБАВЬТЕ ДЛЯ КОММЕНТАРИЕВ В MR ↓↓↓
-        -Dsonar.gitlab.url=https://gitlab.nikitapcl.ru \
-        -Dsonar.gitlab.user_token=${GITLAB_TOKEN} \
-        -Dsonar.gitlab.project_id=${CI_PROJECT_ID} \
-        -Dsonar.gitlab.commit_sha=${CI_COMMIT_SHA} \
-        -Dsonar.gitlab.ref_name=${CI_COMMIT_REF_NAME} \
-        -Dsonar.gitlab.max_global_issues=50 \
-        -Dsonar.gitlab.unique_issue_per_inline=true \
-        -Dsonar.gitlab.failure_notification_mode=exit-code \
+        -Dsonar.qualitygate.timeout=600 \
+        -Dsonar.cpd.bsl.minimumTokens=50 \
+        -Dsonar.cpd.minimumLines=5 \
+        -Dsonar.cpd.maximumGroups=1000 \
+        -Dsonar.cpd.bsl.maximumGroups=1000 \
+        -Dsonar.cpd.bsl.maximumReferences=200
   allow_failure: false 
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'develop'
   tags:
     - sonar
-#ДОБАВИТЬ СБОРКУ
-stages:          # List of stages for jobs, and their order of execution
-  - build
 
-build-job:       # This job runs in the build stage, which runs first.
+build-job: 
   stage: build
+  variables:
+    GIT_SSL_NO_VERIFY: "1"
   script:
-    - oscript ./scripts/edt_build.os
+    - |
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+      $OutputEncoding = [System.Text.Encoding]::UTF8
+      
+      oscript ./scripts/oscript/edt_build/edt_build.os
+      
+      exit $LASTEXITCODE
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "develop" && $CI_PIPELINE_SOURCE == "push"
+      when: manual
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
   artifacts:
-    untracked: true
+    name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_SLUG}_${CI_PIPELINE_ID}_${CI_COMMIT_SHORT_SHA}"
     when: on_success
     access: all
-    expire_in: 30 days
+    expire_in: 7 days
     paths:
       - "artifacts/*.cf*"
+  tags:
+    - build 
+
+deploy_stage:
+  stage: deploy
+  variables:
+    GIT_SSL_NO_VERIFY: "1"
+  script:
+    - |
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+      $OutputEncoding = [System.Text.Encoding]::UTF8
+
+      oscript ./scripts/oscript/deploy_stage/deploy_stage.os
+
+  needs:
+    - job: build-job
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "develop" && $CI_PIPELINE_SOURCE == "push"
+      when: manual
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+  tags:
+    - deploy  
+
