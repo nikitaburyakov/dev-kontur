@@ -53,7 +53,10 @@
    >> напр.: 10.13.8.11	gitlab.userv.ru
 
 ## Административные настройки GitLab
-Получение пароля пользователя root:  docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
+Получение пароля пользователя root:  
+   ```
+   docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
+   ```
 
 1. Кроме единственной административной учетной записи необходимо создать учетную запись с правами администратора для текущего администратора системы.
 2. Создать группу, которая будет источником для проектов (напр. firstbit).
