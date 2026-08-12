@@ -15,6 +15,8 @@ sudo sysctl -p
 # 3. Проверяем, что значение применилось
 sysctl vm.max_map_count
 ```
+Учетные данные по умолчанию:
+   admin:admin
 
 # Настройка интеграции GitLab и SonarQube
 
