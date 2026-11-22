@@ -93,3 +93,62 @@
       dns = ["8.8.8.8", "8.8.4.4"]
      ```
   7. Перезапускаем gitlab-runner
+
+## Инструкция по настройке проброса томов.
+
+### gitlab-runner в Docker
+
+Пути берутся прямо с ХОСТА где стоит контейнер (см. docker-compose.yml -> volumes)
+
+Напр. Папку /srv/gitlab-runner/artifacts нужно создавать на самом хосте (сервере), а не внутри контейнера раннера.
+
+Файл config.toml раннера уже проброшен с хоста в контейнер раннера (обычно это папка /srv/gitlab-runner/config или том gitlab-runner-config на сервере).
+
+#### Найти где лежит config.toml на хосте
+```
+docker inspect $(docker ps -qf "name=runner") --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+```
+
+#### Создать папку на хосте. Напр.:
+```
+sudo mkdir -p /srv/gitlab-runner/artifacts
+sudo chmod -R 777 /srv/gitlab-runner/artifacts
+```
+
+#### Отредактировать config.toml на хосте
+```
+[[runners]]
+  name = "docker-runner-1"
+  url = "https://xn---gitlab-1fgr5t.ru"
+  token = "ТОКЕН_РАННЕРА"
+  executor = "docker"
+  [runners.docker]
+    tls_verify = false
+    image = "alpine:latest"
+    privileged = false
+    disable_entrypoint_overwrite = false
+    oom_kill_disable = false
+    disable_cache = false
+    volumes = [
+      "/cache",
+      "/srv/gitlab-runner/ci-storage:/ci_storage:rw",
+      "/srv/gitlab-runner/artifacts:/artifacts:rw"
+    ]
+    shm_size = 0
+```
+- Путь `/cache` стандартный для gitlab-ci, определяет сборку для cache: {key: path: }. В конце работы собирает и упаковывает в `.zip` файлы в указанных каталогах. Нужно для кеширования данных на перезапусках `stage` либо переиспользования в следующих `stages` (нужно указывать одинаковый `key`).
+
+> Вначале монтируется `/cache`, затем поверх него `/cache/<имя_каталога>`, если такой каталог указан в `config.toml`. Конфликтов не возникает. Но рекомендуется не делать вложенное монтирование
+
+- Путь `/srv/gitlab-runner/ci-storage:/ci_storage:rw` начинается со слэша `/`, поэтому Docker понимает, что это обычная папка на сервере (bind mount), и требует, чтобы она существовала.
+Можно монтировать типа: `ci-storage:/ci-storage`, если на диске с Docker (/var/lib/docker) достаточно свободного места и не планируется забирать собранные файлы напрямую с хоста по сети.
+
+#### Перезапустить контейнер раннера.
+```
+docker restart $(docker ps -qf "name=runner")
+```
+
+#### Пример в `gitlab-ci.yml`:
+```
+EDT_WORKSPACE: "/ci_storage/edt_workspaces/${CI_PROJECT_ID}"
+```
