@@ -1,0 +1,25 @@
+services:
+  crserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 1c-crserver:8.3.27
+    container_name: 1c-crserver
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /usr/share/onec_storage
+      CRS_PORT: 1542
+    ports:
+      - "1542:1542"
+    volumes:
+      - /home/nikita/1C/temp/temp_repo:/usr/share/onec_storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/${CRS_PORT}'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# volumes:
+#   onec_storage:
+#     driver: local
