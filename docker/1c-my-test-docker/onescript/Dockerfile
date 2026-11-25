@@ -10,9 +10,10 @@ RUN apt update \
         locales ca-certificates gnupg dirmngr apt-transport-https software-properties-common curl wget unzip \
         mono-runtime libmono-system-web4.0-cil libmono-i18n4.0-all ca-certificates-mono \
     && locale-gen ru_RU.UTF-8 \
-    && update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8 \
-    && export LANG=ru_RU.UTF-8 \
-    && export LC_ALL=ru_RU.UTF-8 
+    && update-locale LANG=ru_RU.UTF-8 LC_ALL=ru_RU.UTF-8
+
+ENV LANG=ru_RU.UTF-8
+ENV LC_ALL=ru_RU.UTF-8
 
 RUN case "$OSCRIPT_VERSION" in \
         1.*) \
